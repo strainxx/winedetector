@@ -26,7 +26,7 @@ int main() {
         [&detector]() { return detector.servicesTest(); },
         [&detector]() { return detector.processTest(); },
         [&detector]() { return detector.filesTest(); },
-        [&detector]() { return detector.muldivTest(); },
+        // [&detector]() { return detector.muldivTest(); },
         [&detector]() { return detector.dllExportTest(); }
     };
     for (int i = 0; i < functptr.size(); i++) {
@@ -47,6 +47,8 @@ int main() {
     logger.log("\n");
 
     logger.warning("[+] Done! Test points: "+ std::to_string(detector.getScore()) + "/" + std::to_string(detector.getTotalScore()) + "\n");
+
+    Sleep(5000);
 
     return 0;
 }
