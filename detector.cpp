@@ -1,4 +1,5 @@
 #include "detector.hpp"
+#include <algorithm>
 #include <string>
 #include <windows.h>
 #include <iostream>
@@ -6,11 +7,45 @@
 #include <vector>
 
 #include <psapi.h>
+#include <imagehlp.h>
 
 bool dirExists(const std::wstring& path) {
     DWORD attrs = GetFileAttributesW(path.c_str());
     return (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY));
 }
+
+void ListDLLFunctions(std::string sADllName, std::vector<std::string>& slListOfDllFunctions)
+{
+    //https://stackoverflow.com/a/4354755
+    DWORD *dNameRVAs(0);
+    _IMAGE_EXPORT_DIRECTORY *ImageExportDirectory;
+    unsigned long cDirSize;
+    _LOADED_IMAGE LoadedImage;
+    std::string sName;
+    slListOfDllFunctions.clear();
+    if (MapAndLoad(sADllName.c_str(), NULL, &LoadedImage, TRUE, TRUE))
+    {
+        ImageExportDirectory = (_IMAGE_EXPORT_DIRECTORY*)
+            ImageDirectoryEntryToData(LoadedImage.MappedAddress,
+            false, IMAGE_DIRECTORY_ENTRY_EXPORT, &cDirSize);
+        if (ImageExportDirectory != NULL)
+        {
+            dNameRVAs = (DWORD *)ImageRvaToVa(LoadedImage.FileHeader, 
+                LoadedImage.MappedAddress,
+            ImageExportDirectory->AddressOfNames, NULL);
+            for(size_t i = 0; i < ImageExportDirectory->NumberOfNames; i++)
+            {
+                sName = (char *)ImageRvaToVa(LoadedImage.FileHeader, 
+                        LoadedImage.MappedAddress,
+                       dNameRVAs[i], NULL);
+             slListOfDllFunctions.push_back(sName);
+            }
+        }
+        UnMapAndLoad(&LoadedImage);
+    }
+}
+
+
 bool FileExists(const std::wstring& filePath) {
     DWORD attributes = GetFileAttributesW(filePath.c_str());
     if (attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_DIRECTORY)) {
@@ -132,12 +167,14 @@ Detect Detector::registryTest() {
 
     if (KeyExists(HKEY_LOCAL_MACHINE, L"Software\\Wow6432Node\\Wine")) {
         detect.detected = true;
-        return detect;
+        // return detect;
     }
     if (KeyExists(HKEY_CURRENT_USER, L"Software\\Wine")) {
         detect.detected = true;
-        return detect;
+        // return detect;
     }
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
     return detect;
 }
 
@@ -172,6 +209,8 @@ Detect Detector::drivesTest() {
         }
         drive += wcslen(drive) + 1;
     }
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
     return detect;
 }
 
@@ -180,6 +219,44 @@ Detect Detector::servicesTest() {
     detect.name = "Services";
     detect.score = 5;
     detect.detected = ServiceExists(L"Winedevice1");
+    detect.score = 20;
+    detect.detected = ServiceExists(L"Winedevice1");
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
+    return detect;
+}
+
+Detect Detector::dllExportTest() {
+    // https://www.reddit.com/r/linux_gaming/comments/1f2jsgy/comment/lkajyvh/
+    Detect detect;
+    detect.name = "DLL Exports";
+    detect.score = 30;
+    detect.detected = false;
+
+    std::vector<std::string> exports;
+
+    ListDLLFunctions("ntdll.dll", exports);
+
+    if (std::find(exports.begin(), exports.end(), "wine_get_version") != exports.end()) {
+        detect.detected = true;
+    }
+    if (std::find(exports.begin(), exports.end(), "wine_get_host_version") != exports.end()) {
+        detect.detected = true;
+    }
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
+    return detect;
+}
+
+Detect Detector::muldivTest() {
+    // https://www.reddit.com/r/linux_gaming/comments/1f2jsgy/comment/lkajyvh/ but it doesn't work
+    Detect detect;
+    detect.name = "MulDiv";
+    detect.score = 20;
+    detect.detected = MulDiv(1, 0x80000000, 0x80000000) != 2;
+    // std::cout << MulDiv(1, 0x80000000, 0x80000000);
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
     return detect;
 }
 
@@ -188,6 +265,8 @@ Detect Detector::processTest() {
     detect.name = "Process";
     detect.score = 1;
     detect.detected = ProcessExists(L"winedevice.exe");
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
     return detect;
 }
 
@@ -196,5 +275,7 @@ Detect Detector::filesTest() {
     detect.name = "Files";
     detect.score = 1;
     detect.detected = FileExists(L"C:\\windows\\syswow64\\wineboot.exe");
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
     return detect;
 }

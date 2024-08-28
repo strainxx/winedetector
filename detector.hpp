@@ -20,6 +20,16 @@ public:
     Detect processTest();
 
     Detect filesTest();
+
+    Detect muldivTest();
+
+    Detect dllExportTest();
+
+    int getTotalScore() { return totalScore; }
+    int getScore() { return score; }
+private:
+    int totalScore = 0;
+    int score = 0;
 };
 
 #endif // DETECTOR_HPP

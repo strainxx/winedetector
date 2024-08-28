@@ -1,107 +1,52 @@
+#include <functional>
 #include <iostream>
+#include <string>
+#include <synchapi.h>
+#include <vector>
 #include <windows.h>
 #include "logger.hpp"
 #include "detector.hpp"
 
+
 int main() {
-    std::cout << "                                                   .''''." << std::endl << 
-"                                                  /,.--. )" << std::endl << 
-"                             .'``.        __   __((\\- -(\\)" << std::endl << 
-"                    _______.'     \\_.-''''  ``'  /)) - .\\|" << std::endl << 
-"   __....::::::::::'''''''/    .   \'''''''::::::(/ `-'`.)" << std::endl << 
-".:'::.  .  o ~ .  ~  o ~ /    /     '.o ~ . _.....--- `  \\" << std::endl << 
-" ':. ':::::.___.____,___/   ,'_\\      \\ _.-'___..___..._,'" << std::endl << 
-"   ':.  o~  `::::::::::::::::::::::::::::::::::::::::'  (\\" << std::endl << 
-"    `':.  o ~  o   ..   o  ,  ~  \\ . o~   -.  ~   .'.:'\'(" << std::endl << 
-"       ':.  ,..   o  ~   o  . ,  'o.    ~ o   ~ o'.:'  \\(/" << std::endl << 
-"         '.   o   ~   .    ~    o ~ ',o :  :  .' .' ('\\/ |" << std::endl << 
-"           '-._    ~    o  , o  ,  .  ~._ _.o_.-'  \\/ ) (" << std::endl << 
-"               '- .._  .    ~    ~      _.. -'" << std::endl << 
-"                     ''' - .,.,. - '''" << std::endl << 
-"                          (:' .:)" << std::endl << 
-"                           :| '|" << std::endl << 
-"                           |. ||" << std::endl << 
-"                           || :|" << std::endl << 
-"                           :| |'" << std::endl << 
-"                           || :|" << std::endl << 
-"                           '| ||" << std::endl << 
-"                           |: ':" << std::endl << 
-"                           || :|" << std::endl << 
-"                     __..--:| |'--..__" << std::endl << 
-"               _...-'  _.' |' :| '.__ '-..._" << std::endl << 
-"             / -  ..---    '''''   ---...  _ \\" << std::endl << 
-"             \\  _____  ..--   --..     ____  /" << std::endl << 
-"              '-----....._________.....-----'" << std::endl <<
-"    WINEDETECTOR                V0.1.0       " << std::endl;
+    std::cout << " ______            _                _      _            _             " << std::endl <<
+" \\~~~~/  __      _(_)_ __   ___  __| | ___| |_ ___  ___| |_ ___  _ __ " << std::endl <<
+"  \\  /   \\ \\ /\\ / / | '_ \\ / _ \\/ _` |/ _ \\ __/ _ \\/ __| __/ _ \\| '__|" << std::endl <<
+"   []     \\ V  V /| | | | |  __/ (_| |  __/ ||  __/ (__| || (_) | | " << std::endl <<  
+"   []      \\_/\\_/ |_|_| |_|\\___|\\__,_|\\___|\\__\\___|\\___|\\__\\___/|_| " << std::endl <<  
+"  ----                                                      " << std::endl <<
+"    WINEDETECTOR                V0.2.0       \n" << std::endl;
 
     Logger logger;
     Detector detector;
-    int stage1Detects = 0;
-    logger.success("\n\n[+] Stage 1 started\n");
-    Sleep(1000);
-    logger.log("[~] Registry test ");
-    Detect registryTest = detector.registryTest();
-    if(registryTest.detected) {
-        logger.error("DETECTED\n");
-        stage1Detects+= 1;
-    } else {
-        logger.success("PASSED\n");
-    }
-    Sleep(500);
-    logger.log("[~] Drives test ");
-    Detect drivesTest = detector.drivesTest();
-    if(drivesTest.detected) {
-        logger.error("DETECTED\n");
-        stage1Detects+= 1;
-    } else {
-        logger.success("PASSED\n");
-    }
-    Sleep(500);
-    logger.log("[~] Files test ");
-    Detect filesTest = detector.filesTest();
-    if(filesTest.detected) {
-        logger.error("DETECTED\n");
-        stage1Detects+= 1;
-    } else {
-        logger.success("PASSED\n");
-    }
-
     
-    if(stage1Detects >= 1) {
-        logger.error("[+] Stage 1 failed (" + std::to_string(stage1Detects) + "/3)" +"\n");
-    } else {
-        logger.success("[+] Stage 1 passed\n");
-    }
-    // logger.log("\n");
+    std::vector<std::function<Detect()>> functptr = {
+        [&detector]() { return detector.drivesTest(); },
+        [&detector]() { return detector.registryTest(); },
+        [&detector]() { return detector.servicesTest(); },
+        [&detector]() { return detector.processTest(); },
+        [&detector]() { return detector.filesTest(); },
+        [&detector]() { return detector.muldivTest(); },
+        [&detector]() { return detector.dllExportTest(); }
+    };
+    for (int i = 0; i < functptr.size(); i++) {
+        Detect detect = (functptr[i])();
+        logger.log("[~] Tested " + (detect.name) +". Result: ");
 
-    int stage2Detects = 0;
-    logger.success("\n\n[+] Stage 2 started\n");
-    Sleep(1000);
-    logger.log("[~] Services test ");
-    Detect servicesTest = detector.servicesTest();
-    if(servicesTest.detected) {
-        logger.error("DETECTED\n");
-        stage2Detects+= 1;
-    } else {
-        logger.success("PASSED\n");
-    }
-    Sleep(500);
+        if (detect.detected) {
+            logger.error("DETECTED\n");
+        }
+        else {
+            logger.success("PASSED\n");
+        }
 
-    logger.log("[~] Process test ");
-    Detect processTest = detector.processTest();
-    if(processTest.detected) {
-        logger.error("DETECTED\n");
-        stage2Detects+= 1;
-    } else {
-        logger.success("PASSED\n");
-    }
-    Sleep(500);
-    if(stage2Detects >= 1) {
-        logger.error("[+] Stage 2 failed (" + std::to_string(stage2Detects) + "/2)" +"\n");
-    } else {
-        logger.success("[+] Stage 2 passed\n");
-    }
+        Sleep(500);
     
+    }
+
+    logger.log("\n");
+
+    logger.warning("[+] Done! Test points: "+ std::to_string(detector.getScore()) + "/" + std::to_string(detector.getTotalScore()) + "\n");
 
     return 0;
 }
