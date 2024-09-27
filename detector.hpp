@@ -25,6 +25,8 @@ public:
 
     Detect dllExportTest();
 
+    Detect legacyApiTest();
+
     int getTotalScore() { return totalScore; }
     int getScore() { return score; }
 private:

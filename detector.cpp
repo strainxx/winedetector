@@ -1,5 +1,4 @@
 #include "detector.hpp"
-#include <algorithm>
 #include <string>
 #include <windows.h>
 #include <iostream>
@@ -14,35 +13,16 @@ bool dirExists(const std::wstring& path) {
     return (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY));
 }
 
-void ListDLLFunctions(std::string sADllName, std::vector<std::string>& slListOfDllFunctions)
-{
-    //https://stackoverflow.com/a/4354755
-    DWORD *dNameRVAs(0);
-    _IMAGE_EXPORT_DIRECTORY *ImageExportDirectory;
-    unsigned long cDirSize;
-    _LOADED_IMAGE LoadedImage;
-    std::string sName;
-    slListOfDllFunctions.clear();
-    if (MapAndLoad(sADllName.c_str(), NULL, &LoadedImage, TRUE, TRUE))
-    {
-        ImageExportDirectory = (_IMAGE_EXPORT_DIRECTORY*)
-            ImageDirectoryEntryToData(LoadedImage.MappedAddress,
-            false, IMAGE_DIRECTORY_ENTRY_EXPORT, &cDirSize);
-        if (ImageExportDirectory != NULL)
-        {
-            dNameRVAs = (DWORD *)ImageRvaToVa(LoadedImage.FileHeader, 
-                LoadedImage.MappedAddress,
-            ImageExportDirectory->AddressOfNames, NULL);
-            for(size_t i = 0; i < ImageExportDirectory->NumberOfNames; i++)
-            {
-                sName = (char *)ImageRvaToVa(LoadedImage.FileHeader, 
-                        LoadedImage.MappedAddress,
-                       dNameRVAs[i], NULL);
-             slListOfDllFunctions.push_back(sName);
-            }
+bool exportExists(std::wstring module, std::string exportName) {
+    HMODULE hModule = GetModuleHandleW(module.c_str());
+    if (hModule) {
+        FARPROC proc = GetProcAddress(hModule, exportName.c_str());
+        if (proc) {
+            return true;
         }
-        UnMapAndLoad(&LoadedImage);
     }
+    return false;
+
 }
 
 
@@ -217,8 +197,6 @@ Detect Detector::drivesTest() {
 Detect Detector::servicesTest() {
     Detect detect;
     detect.name = "Services";
-    detect.score = 5;
-    detect.detected = ServiceExists(L"Winedevice1");
     detect.score = 20;
     detect.detected = ServiceExists(L"Winedevice1");
     this->totalScore += detect.score;
@@ -227,7 +205,9 @@ Detect Detector::servicesTest() {
 }
 
 Detect Detector::dllExportTest() {
+    // References:
     // https://www.reddit.com/r/linux_gaming/comments/1f2jsgy/comment/lkajyvh/
+    // https://www.hexacorn.com/blog/2016/03/27/detecting-wine-via-internal-and-legacy-apis/
     Detect detect;
     detect.name = "DLL Exports";
     detect.score = 30;
@@ -235,12 +215,29 @@ Detect Detector::dllExportTest() {
 
     std::vector<std::string> exports;
 
-    ListDLLFunctions("ntdll.dll", exports);
-
-    if (std::find(exports.begin(), exports.end(), "wine_get_version") != exports.end()) {
+    if (exportExists(L"ntdll.dll", "wine_get_version")) {
         detect.detected = true;
     }
-    if (std::find(exports.begin(), exports.end(), "wine_get_host_version") != exports.end()) {
+
+    if (exportExists(L"ntdll.dll", "wine_get_host_version")) {
+        detect.detected = true;
+    }
+
+    if (exportExists(L"ntdll.dll", "wine_server_call")) {
+        detect.detected = true;
+    }
+
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
+    return detect;
+}
+
+Detect Detector::legacyApiTest() {
+    Detect detect;
+    detect.name = "Legacy API";
+    detect.score = 20;
+    detect.detected = false;
+    if (exportExists(L"kernel32.dll", "RegisterServiceProcess")) {
         detect.detected = true;
     }
     this->totalScore += detect.score;
