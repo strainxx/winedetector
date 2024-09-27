@@ -40,11 +40,10 @@ C:\\windows\\syswow64\\wineboot.exe - [it's all what you need to know](https://g
 Thanks to [shavitush](https://www.reddit.com/r/linux_gaming/comments/1f2jsgy/comment/lkajyvh/) for this information about this
 
 Some system dlls have suspicious exports:
-
-### Legacy Api Test
-https://www.hexacorn.com/blog/2016/03/27/detecting-wine-via-internal-and-legacy-apis/
-
 * [ntdll.dll!wine_get_version](https://github.com/strainxx/winedetector/blob/5d591557b91aa5261bd1031c05ebdedbf2e4932b/detector.cpp#L240-L245)
 * [ntdll.dll!wine_get_host_version](https://github.com/strainxx/winedetector/blob/5d591557b91aa5261bd1031c05ebdedbf2e4932b/detector.cpp#L240-L245)
 * kernel32.dll!wine_get_unix_file_name
 * .. and others
+
+### Legacy Api Test
+https://www.hexacorn.com/blog/2016/03/27/detecting-wine-via-internal-and-legacy-apis/
