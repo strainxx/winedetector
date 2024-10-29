@@ -1,17 +1,28 @@
 #include "detector.hpp"
+#include <errhandlingapi.h>
 #include <string>
 #include <windows.h>
 #include <iostream>
+#include <winnt.h>
 #include <winreg.h>
 #include <vector>
 
 #include <psapi.h>
 #include <imagehlp.h>
+#include <winternl.h>
+
+
 
 bool dirExists(const std::wstring& path) {
     DWORD attrs = GetFileAttributesW(path.c_str());
     return (attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_DIRECTORY));
 }
+
+
+struct Export{
+    std::wstring dll;
+    std::string name;
+};
 
 bool exportExists(std::wstring module, std::string exportName) {
     HMODULE hModule = GetModuleHandleW(module.c_str());
@@ -194,6 +205,31 @@ Detect Detector::drivesTest() {
     return detect;
 }
 
+Detect Detector::unimplementedTest() {
+    
+    Detect detect;
+    detect.name = "Unimplemented APIs";
+    detect.score = 20;
+    detect.detected = false;
+
+    HANDLE hHeap = GetProcessHeap();
+    
+    NTSTATUS status = RtlSetHeapInformation(
+        hHeap,
+        (HEAP_INFORMATION_CLASS)-133713371337, // Wine returns success, but it doesn't work: https://github.com/wine-mirror/wine/blob/3a736901cdd588ba7fbb4318e5f5069793268a01/dlls/ntdll/heap.c#L2607
+        NULL,
+        0
+    ); // TODO: Gaming OS also returns success :/
+    
+    if (status == 0) {
+        detect.detected = true;
+    }
+
+    this->totalScore += detect.score;
+    this->score += detect.detected ? detect.score : 0;
+    return detect;
+}
+
 Detect Detector::servicesTest() {
     Detect detect;
     detect.name = "Services";
@@ -208,23 +244,26 @@ Detect Detector::dllExportTest() {
     // References:
     // https://www.reddit.com/r/linux_gaming/comments/1f2jsgy/comment/lkajyvh/
     // https://www.hexacorn.com/blog/2016/03/27/detecting-wine-via-internal-and-legacy-apis/
+    // https://github.com/wine-mirror/wine/blob/master/dlls/winecrt0/debug.c
     Detect detect;
     detect.name = "DLL Exports";
     detect.score = 30;
     detect.detected = false;
 
-    std::vector<std::string> exports;
+    std::vector<Export> exports = {
+        Export{L"ntdll.dll", "wine_get_version"},
+        Export{L"ntdll.dll", "wine_get_host_version"},
+        Export{L"ntdll.dll", "wine_server_call"},
+        Export{L"ntdll.dll", "__wine_dbg_output"},
+        Export{L"ntdll.dll", "__wine_dbg_strdup"},
+        Export{L"ntdll.dll", "__wine_dbg_get_channel_flags"},
+    };
 
-    if (exportExists(L"ntdll.dll", "wine_get_version")) {
-        detect.detected = true;
-    }
-
-    if (exportExists(L"ntdll.dll", "wine_get_host_version")) {
-        detect.detected = true;
-    }
-
-    if (exportExists(L"ntdll.dll", "wine_server_call")) {
-        detect.detected = true;
+    for(auto& e : exports) {
+        if (exportExists(e.dll, e.name)) {
+            detect.detected = true;
+            // break;
+        }
     }
 
     this->totalScore += detect.score;
@@ -234,7 +273,7 @@ Detect Detector::dllExportTest() {
 
 Detect Detector::legacyApiTest() {
     Detect detect;
-    detect.name = "Legacy API";
+    detect.name = "Legacy APIs";
     detect.score = 20;
     detect.detected = false;
     if (exportExists(L"kernel32.dll", "RegisterServiceProcess")) {

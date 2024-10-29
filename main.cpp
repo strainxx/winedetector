@@ -1,3 +1,4 @@
+#include <cstddef>
 #include <functional>
 #include <iostream>
 #include <string>
@@ -15,7 +16,7 @@ int main() {
 "   []     \\ V  V /| | | | |  __/ (_| |  __/ ||  __/ (__| || (_) | | " << std::endl <<  
 "   []      \\_/\\_/ |_|_| |_|\\___|\\__,_|\\___|\\__\\___|\\___|\\__\\___/|_| " << std::endl <<  
 "  ----                                                      " << std::endl <<
-"    WINEDETECTOR                V0.3.0       \n" << std::endl;
+"    WINEDETECTOR                V0.3.1       \n" << std::endl;
 
     Logger logger;
     Detector detector;
@@ -28,9 +29,10 @@ int main() {
         [&detector]() { return detector.filesTest(); },
         // [&detector]() { return detector.muldivTest(); },
         [&detector]() { return detector.dllExportTest(); },
-        [&detector]() { return detector.legacyApiTest(); }
+        [&detector]() { return detector.legacyApiTest(); },
+        // [&detector]() { return detector.unimplementedTest(); }
     };
-    for (int i = 0; i < functptr.size(); i++) {
+    for (size_t i = 0; i < functptr.size(); i++) {
         Detect detect = (functptr[i])();
         logger.log("[~] Tested " + (detect.name) +". Result: ");
 

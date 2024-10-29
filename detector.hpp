@@ -27,6 +27,8 @@ public:
 
     Detect legacyApiTest();
 
+    Detect unimplementedTest();
+
     int getTotalScore() { return totalScore; }
     int getScore() { return score; }
 private:
